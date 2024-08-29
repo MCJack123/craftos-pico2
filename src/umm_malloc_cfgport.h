@@ -1,0 +1,2 @@
+#define UMM_BLOCK_BODY_SIZE (256)
+#define UMM_INTEGRITY_CHECK 1
