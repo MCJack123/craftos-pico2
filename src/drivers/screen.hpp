@@ -1,6 +1,6 @@
 #ifndef SCREEN_H
 #define SCREEN_H
-#include "../common.hpp"
+#include <stdint.h>
 
 #define FB_WIDTH    320
 #define FB_HEIGHT   240

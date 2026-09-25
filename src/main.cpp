@@ -1,14 +1,17 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <pico/platform.h>
+#include <pico/aon_timer.h>
 #include <hardware/exception.h>
 #include <sfe_pico_alloc.h>
+#include <craftos.h>
 #include "drivers/screen.hpp"
 #include "drivers/hid.hpp"
 #include "modules/terminal.hpp"
 
 extern "C" void fs_init(void);
 extern void machine_main(void*);
+extern "C" const craftos_func_t F_func;
 
 TaskHandle_t mainTask;
 
@@ -27,14 +30,15 @@ extern "C" {
 }
 
 void app_main(void* arg) {
+    craftos_init(&F_func);
     screen_init();
     terminal_init();
     fs_init();
     hid_init();
-
-    terminal_clear(-1, 0xF0);
-    //terminal_write_literal(0, 0, "Starting CraftOS-Pico2...", 0xF4);
-    terminal_cursor(-1, 0, 0);
+    timespec now;
+    now.tv_nsec = 0;
+    now.tv_sec = 1790812800; // 2026-10-01T00:00:00Z
+    aon_timer_start(&now);
     machine_main(arg);
 }
 

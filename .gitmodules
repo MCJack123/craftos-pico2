@@ -1,12 +1,12 @@
 [submodule "FreeRTOS-Kernel"]
-	path = FreeRTOS-Kernel
+	path = vendor/FreeRTOS-Kernel
 	url = https://github.com/raspberrypi/FreeRTOS-Kernel
-[submodule "src/craftos2-lua"]
-	path = src/craftos2-lua
-	url = https://github.com/MCJack123/craftos2-lua
 [submodule "sparkfun-pico"]
-	path = sparkfun-pico
+	path = vendor/sparkfun-pico
 	url = https://github.com/sparkfun/sparkfun-pico
 [submodule "littlefs"]
-	path = littlefs
+	path = vendor/littlefs
 	url = https://github.com/littlefs-project/littlefs
+[submodule "vendor/craftos-base"]
+	path = vendor/craftos-base
+	url = https://github.com/MCJack123/craftos-base
