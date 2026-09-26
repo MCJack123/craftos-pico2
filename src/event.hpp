@@ -15,6 +15,8 @@ typedef enum {
     EVENT_TYPE_REDSTONE,
     EVENT_TYPE_SPEAKER_AUDIO_EMPTY,
     EVENT_TYPE_TERMINATE,
+    EVENT_TYPE_PERIPHERAL,
+    EVENT_TYPE_PERIPHERAL_DETACH,
 } event_type_t;
 
 typedef union {
@@ -32,6 +34,10 @@ typedef union {
         uint32_t type;
         uint32_t timerID;
     } timer;
+    struct {
+        uint32_t type;
+        const char * side;
+    } peripheral;
 } event_t;
 
 extern void event_push(const event_t* event);

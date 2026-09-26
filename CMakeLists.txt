@@ -1,3 +1,19 @@
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.3.1)
+set(toolchainVersion 15_2_Rel1)
+set(picotoolVersion 2.3.1)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
+set(PICO_BOARD pimoroni_pico_plus2_rp2350 CACHE STRING "Board type")
+
 cmake_minimum_required(VERSION 3.12)
 
 # Pull in PICO SDK (must be before project)
@@ -26,6 +42,7 @@ add_executable(craftos-pico2
     src/modules/terminal.cpp
     src/drivers/hid.cpp
     src/drivers/screen.cpp
+    src/peripheral/peripheral_detect.cpp
     src/machine.cpp
     src/event.cpp
     src/craftos2_rom.c
@@ -33,6 +50,7 @@ add_executable(craftos-pico2
     src/fs.c
     vendor/littlefs/lfs.c vendor/littlefs/lfs_util.c
 )
+pico_generate_pio_header(craftos-pico2 ${CMAKE_CURRENT_LIST_DIR}/src/peripheral/peripheral_id.pio)
 
 include(common/pimoroni_i2c)
 include(common/pimoroni_bus)

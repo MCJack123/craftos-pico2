@@ -46,5 +46,7 @@ void screen_update(void) {
 }
 
 void screen_deinit(void) {
-
+    display.set_backlight(0);
+    led.set_rgb(0, 0, 0);
+    memset(framebuffer, 0, sizeof(framebuffer));
 }

@@ -1,0 +1,75 @@
+; 8 cycles per bit
+.program peripheral_id_decoder
+entrypoint:
+	set Y, 7
+	set PINDIRS, 0
+step1:
+	wait 1 PIN 0 [10]
+step2:
+	in PINS, 1 [7]
+	in PINS, 1 [7]
+	in PINS, 1
+	mov X, ISR
+	jmp X!=y, step4
+	jmp highcheck
+step4:
+	nop [4]
+step4_nowait:
+	jmp PIN, step2 [7]
+	jmp PIN, step2 [7]
+	jmp PIN, step2 [7]
+	jmp PIN, step2_wait
+	push noblock
+	jmp step1
+
+step2_wait:
+	jmp step2 [6]
+
+highcheck:
+	jmp PIN, highcheck_end
+	jmp step4_nowait [1]
+	set X, 2
+highcheck_loop:
+    ; this runs on tick 2
+	jmp PIN, highcheck_end
+	jmp step1
+
+highcheck_wait:
+	jmp highcheck_loop [5]
+
+highcheck_end:
+	jmp X--, highcheck_wait
+	; line is inactive
+	;irq set 0
+	wait 0 pin 0
+	jmp step1
+
+% c-sdk {
+
+void peripheral_id_decoder_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
+    // Sets up state machine and wrap target. This function is automatically
+    // generated in blink.pio.h.
+    pio_sm_config c = peripheral_id_decoder_program_get_default_config(offset);
+
+    // Allow PIO to control GPIO pin (as output)
+    pio_gpio_init(pio, pin);
+	gpio_pull_up(pin);
+
+    // Connect pin to IN pin (control with 'in' instruction)
+    sm_config_set_in_pins(&c, pin);
+	sm_config_set_jmp_pin(&c, pin);
+
+	sm_config_set_in_shift(&c, false, false, 32);
+	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+    // Set the pin direction to input (in PIO)
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
+    
+    // Set the clock divider for the state machine
+    sm_config_set_clkdiv(&c, div);
+
+    // Load configuration and jump to start of the program
+    pio_sm_init(pio, sm, offset, &c);
+}
+
+%}

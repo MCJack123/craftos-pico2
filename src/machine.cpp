@@ -5,9 +5,12 @@ extern "C" {
 #include <FreeRTOS.h>
 #include <task.h>
 #include "event.hpp"
+#include "drivers/screen.hpp"
 #include <craftos.h>
 #include <fcntl.h>
 #include <hardware/flash.h>
+#include <pico/bootrom.h>
+#include <boot/picoboot_constants.h>
 #include <sfe_pico_alloc.h>
 
 extern "C" {
@@ -75,19 +78,21 @@ void machine_main(void*) {
                 case EVENT_TYPE_KEY_UP: craftos_event_key_up(machine, ev.key.keycode); break;
                 case EVENT_TYPE_CHAR: craftos_event_char(machine, ev.character.c); break;
                 case EVENT_TYPE_TIMER: craftos_event_timer(machine, ev.timer.timerID);
-                case EVENT_TYPE_DISK: craftos_machine_queue_event(machine, "disk", "z", "left"); break; /* TODO: sides */
-                case EVENT_TYPE_DISK_EJECT: craftos_machine_queue_event(machine, "disk_eject", "z", "left"); break; /* TODO: sides */
-                case EVENT_TYPE_SPEAKER_AUDIO_EMPTY: craftos_machine_queue_event(machine, "speaker_audio_empty", "z", "left"); break; /* TODO: sides */
+                case EVENT_TYPE_DISK: craftos_machine_queue_event(machine, "disk", "z", ev.peripheral.side); break;
+                case EVENT_TYPE_DISK_EJECT: craftos_machine_queue_event(machine, "disk_eject", "z", ev.peripheral.side); break;
+                case EVENT_TYPE_SPEAKER_AUDIO_EMPTY: craftos_machine_queue_event(machine, "speaker_audio_empty", "z", ev.peripheral.side); break;
+                case EVENT_TYPE_PERIPHERAL: craftos_machine_queue_event(machine, "peripheral", "z", ev.peripheral.side); break;
+                case EVENT_TYPE_PERIPHERAL_DETACH: craftos_machine_queue_event(machine, "peripheral_detach", "z", ev.peripheral.side); break;
             }
         } else if (status == CRAFTOS_MACHINE_STATUS_RESTART) {
-
+            screen_deinit();
+            rom_reboot(REBOOT2_FLAG_REBOOT_TYPE_NORMAL, 0, 0, 0);
+            vTaskDelay(portMAX_DELAY);
         } else if (status == CRAFTOS_MACHINE_STATUS_SHUTDOWN) {
-
+            screen_deinit();
+            panic("shutdown");
         } else if (status == CRAFTOS_MACHINE_STATUS_ERROR) {
-            //craftos_machine_destroy(machine);
-            //machine = NULL;
-            while (true) vTaskDelay(pdMS_TO_TICKS(1000));
-            return;
+            panic("error");
         }
     } while (status == CRAFTOS_MACHINE_STATUS_YIELD);
     printf("Closing session.\n");

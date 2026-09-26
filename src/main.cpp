@@ -12,6 +12,7 @@
 extern "C" void fs_init(void);
 extern void machine_main(void*);
 extern "C" const craftos_func_t F_func;
+extern void peripheral_detect_init(void);
 
 TaskHandle_t mainTask;
 
@@ -35,6 +36,7 @@ void app_main(void* arg) {
     terminal_init();
     fs_init();
     hid_init();
+    peripheral_detect_init();
     timespec now;
     now.tv_nsec = 0;
     now.tv_sec = 1790812800; // 2026-10-01T00:00:00Z
