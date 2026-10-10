@@ -109,7 +109,7 @@ static void F_mutex_destroy(craftos_mutex_t mutex) {
 }
 
 static int F_mutex_lock(craftos_mutex_t mutex) {
-    return xSemaphoreTake((QueueHandle_t)mutex, portMAX_DELAY) ? 0 : -1;
+    return xSemaphoreTake((SemaphoreHandle_t)mutex, portMAX_DELAY) ? 0 : -1;
 }
 
 static void F_mutex_unlock(craftos_mutex_t mutex) {

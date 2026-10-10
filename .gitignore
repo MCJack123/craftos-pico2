@@ -1,6 +1,6 @@
 build
-/PeripheralID.X/dist/
-/PeripheralID.X/debug/
-/PeripheralID.X/nbproject/private/
-/PeripheralID.X/nbproject/Makefile-genesis.properties
-/PeripheralID.X/nbproject/Makefile-local-default.mk
+/Peripheral1Wire.X/dist/
+/Peripheral1Wire.X/debug/
+/Peripheral1Wire.X/nbproject/private/
+/Peripheral1Wire.X/nbproject/Makefile-genesis.properties
+/Peripheral1Wire.X/nbproject/Makefile-local-default.mk

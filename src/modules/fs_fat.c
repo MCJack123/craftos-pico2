@@ -78,7 +78,7 @@ static int fs_fat_rename(struct mount * mount, const char * from, const char * t
 }
 
 static int fs_fat_mkdir(struct mount * mount, const char * path, int mode, craftos_machine_t machine) {
-    return ff_mkdir(path, 1);
+    return ff_mkdir(path);
 }
 
 static int fs_fat_access(struct mount * mount, const char * path, int flags, craftos_machine_t machine) {

@@ -660,5 +660,6 @@
 #define INCLUDE_xTaskAbortDelay                0
 #define INCLUDE_xTaskGetHandle                 1
 #define INCLUDE_xTaskResumeFromISR             1
+#define INCLUDE_xSemaphoreGetMutexHolder       1
 
 #endif /* FREERTOS_CONFIG_H */

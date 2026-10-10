@@ -3,8 +3,8 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>PeripheralID</name>
-            <creation-uuid>8a359e36-3c16-4f5d-809e-53d3560d9b41</creation-uuid>
+            <name>Peripheral1Wire</name>
+            <creation-uuid>e33bdc53-087f-45ab-a2e2-f3faef52024e</creation-uuid>
             <make-project-type>0</make-project-type>
             <sourceEncoding>ISO-8859-1</sourceEncoding>
             <make-dep-projects/>

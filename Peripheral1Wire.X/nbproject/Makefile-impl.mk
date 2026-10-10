@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=PeripheralID.X
+PROJECTNAME=Peripheral1Wire.X
 
 # Active Configuration
 DEFAULTCONF=default

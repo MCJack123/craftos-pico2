@@ -19,11 +19,12 @@ To be able to use USB devices (keyboard) you will need to power the board separa
 Peripherals communicate through the SP/CE ports on the Pico Plus 2 (GPIO 32-36) and the Pico Display 2.8" (GPIO 7-11). The usage of the pins varies depending on the peripheral type.
 
 #### Peripheral ID
-The BL pin on the connector (GPIO 7/36) is used for peripheral identification. This carries a "chirp" protocol similar in nature to UART, but is designed for syncing and is explicitly incompatible. The protocol runs at 488.28125 baud (1.000 MHz divided by 2048), active high, idle low, and has one high start bit, three data bits, and four low stop bits. The stop bits assure the decoder that if any of them are found to be high, the data read was not correct and the decoder resyncs starting at that bit.
+The BL pin on the connector (GPIO 7/36) is used for peripheral identification. This carries the 1-Wire protocol using a simple command-response system: the computer issues a reset, and then a 1 byte command; the peripheral then sends back a 1 byte response. The following commands are currently implemented:
 
-The ID pin has a weak pull-up on the Pico side to enable chip detection - as soon as a peripheral is detached, it'll go high for > 8 bits and the OS will trigger a detach event in response. This means the ID chip can power off after chirping enough times for the OS to detect it.
+- 0x01: Reply with the peripheral type ID.
+- 0x02: Reply with the current GPIO input state. (Used for GPIO expansion, necessary for some peripherals)
 
-The peripheral ID code in `PeripheralID.X` is designed for low-end PIC chips down to the PIC10F200, but any microcontroller (or even TTL logic) can be used. For example, the monitor's ESP32-S3 driver outputs the chirp itself in parallel with the display code. Assume all peripherals require one of these chips unless otherwise specified.
+The peripheral ID code in `Peripheral1Wire.X` is designed for PIC chips (currently targeting PIC16LF1613 but the code is portable to any 16 MHz-capable PIC), but any microcontroller that can operate as a 1-Wire device can be used. For example, the monitor's ESP32-S3 driver handles 1-Wire itself in parallel with the display code. Assume all peripherals require one of these chips unless otherwise specified.
 
 #### Drive (ID 1)
 - (micro)SD card slot breakout with SPI pinout

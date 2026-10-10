@@ -95,6 +95,7 @@ accesses the file system, allowing relative paths to be used.
 Set to 0 not to use a CWD, in which case full paths must be used for each
 file access. */
 #define ffconfigHAS_CWD 0
+#define ff_getcwd(_, __) NULL
 
 /* Set to an index within FreeRTOS's thread local storage array that is free for
 use by FreeRTOS+FAT.  FreeRTOS+FAT will use two consecutive indexes from this
@@ -255,7 +256,7 @@ the tree at a time.  For example mkdir( "/etc/settings/network", pdTRUE );.
 
 Set to 0 to use the normal mkdir() semantics (without the additional
 parameter). */
-#define	ffconfigMKDIR_RECURSIVE	 1
+#define	ffconfigMKDIR_RECURSIVE	 0
 
 /* Set to a function that will be used for all dynamic memory allocations.
 Setting to pvPortMalloc() will use the same memory allocator as FreeRTOS. */
@@ -336,6 +337,7 @@ connected. */
 // #define FF_PRINTF   task_printf
 #define FF_PRINTF   printf
 // #define FF_PRINTF error_message_printf_plain
+#include <stdio.h>
 
 /* Visual studio does not have an implementation of strcasecmp().
 _RB_ Cannot use FF_NOSTRCASECMP setting as the internal implementation of
