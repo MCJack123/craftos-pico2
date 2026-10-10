@@ -237,7 +237,7 @@ static const uint8_t cc_keymap[256] = {
     4, 5, 6, 7, 8, 9, 10, 11,                   // 20
     28, 1, 14, 15, 57, 12, 13, 26,              // 28
     27, 43, 0, 39, 40, 41, 51, 52,              // 30
-    43, 58, 59, 60, 61, 62, 63, 64,             // 38
+    53, 58, 59, 60, 61, 62, 63, 64,             // 38
     65, 66, 67, 68, 87, 88, 196, 70,            // 40
     197, 198, 199, 201, 211, 207, 209, 205,     // 48
     203, 208, 200, 69, 181, 55, 74, 78,         // 50
@@ -312,8 +312,8 @@ static void repeat_timer(TimerHandle_t timer) {
     for (int key = 0; key < 256; key++) {
         if (keypress_time[key] && cc_keymap[key] && absolute_time_diff_us(t, keypress_time[key]) > 600000) {
             key_cb(cc_keymap[key], true);
-            if (keycode2ascii[key][0])
-                char_cb(keycode2ascii[key][(shift_held != caps_lock) ? 1 : 0]);
+            //if (keycode2ascii[key][0])
+                //char_cb(keycode2ascii[key][(shift_held != caps_lock) ? 1 : 0]);
         }
     }
 }
@@ -333,8 +333,8 @@ static void process_kbd_report(hid_keyboard_report_t const *report) {
         if (key && !keypress_time[key]) {
             if (cc_keymap[key]) {
                 key_cb(cc_keymap[key], false);
-                if (keycode2ascii[key][0])
-                    char_cb(keycode2ascii[key][((report->modifier & (KEYBOARD_MODIFIER_LEFTSHIFT | KEYBOARD_MODIFIER_RIGHTSHIFT)) != caps_lock) ? 1 : 0]);
+                //if (keycode2ascii[key][0])
+                    //char_cb(keycode2ascii[key][((report->modifier & (KEYBOARD_MODIFIER_LEFTSHIFT | KEYBOARD_MODIFIER_RIGHTSHIFT)) != caps_lock) ? 1 : 0]);
             }
             if (key == 0x39) { // caps lock
                 caps_lock = !caps_lock;

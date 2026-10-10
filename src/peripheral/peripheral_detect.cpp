@@ -6,24 +6,19 @@
 #include <pico/time.h>
 #include <craftos.h>
 #include "../event.hpp"
+#include "peripheral.hpp"
 #include "peripheral_id.pio.h"
 
-struct peripheral {
-    const char * types[2];
-    const luaL_Reg * funcs;
-    void* userp;
-};
-
 extern "C" {
-    craftos_machine_t machine = NULL;
+    extern craftos_machine_t machine;
 }
 
 static TaskHandle_t detect_task_left, detect_task_right;
 static struct peripheral * peripherals[8] = {
     NULL,
-    NULL,
-    NULL,
-    NULL,
+    &peripheral_drive,
+    &peripheral_speaker,
+    &peripheral_modem,
     NULL,
     NULL,
     NULL,
@@ -39,7 +34,7 @@ static struct peripheral * peripherals[8] = {
 // }
 
 static void peripheral_detect_task(void* isRight) {
-    static const uint led_pin = 4; //isRight ? 36 : 7;
+    const uint led_pin = isRight ? 36 : 7;
     static const float pio_freq = 488.28125 * 8;
 
     // Choose PIO instance (0 or 1)
@@ -66,9 +61,11 @@ static void peripheral_detect_task(void* isRight) {
 
     absolute_time_t last_check = 0;
     int last_id = -1;
+    void* userp = NULL;
     while (true) {
         while (pio_sm_is_rx_fifo_empty(pio, sm)) {
             if (last_id != -1 && absolute_time_diff_us(get_absolute_time(), last_check) > 500000) {
+                peripherals[last_id]->close(userp);
                 event_t event;
                 event.type = EVENT_TYPE_PERIPHERAL_DETACH;
                 event.peripheral.side = isRight ? "right" : "left";
@@ -78,9 +75,10 @@ static void peripheral_detect_task(void* isRight) {
             }
             vTaskDelay(pdMS_TO_TICKS(100));
         }
-        uint32_t id = pio_sm_get_blocking(pio, sm) & 7;
+        uint32_t id = pio_sm_get(pio, sm) & 7;
         last_check = get_absolute_time();
-        if (last_id != -1 && last_id != id) {
+        if (last_id != -1 && last_id != id && peripherals[last_id] != NULL && userp != NULL) {
+            peripherals[last_id]->close(userp);
             event_t event;
             event.type = EVENT_TYPE_PERIPHERAL_DETACH;
             event.peripheral.side = isRight ? "right" : "left";
@@ -90,11 +88,13 @@ static void peripheral_detect_task(void* isRight) {
         }
         if (last_id == -1) {
             if (peripherals[id] != NULL) {
-                event_t event;
-                event.type = EVENT_TYPE_PERIPHERAL;
-                event.peripheral.side = isRight ? "right" : "left";
-                event_push(&event);
-                craftos_machine_peripheral_attach(machine, isRight ? "right" : "left", peripherals[id]->types, peripherals[id]->funcs, peripherals[id]->userp);
+                if (peripherals[id]->open(isRight, &userp) == 0) {
+                    event_t event;
+                    event.type = EVENT_TYPE_PERIPHERAL;
+                    event.peripheral.side = isRight ? "right" : "left";
+                    event_push(&event);
+                    craftos_machine_peripheral_attach(machine, isRight ? "right" : "left", peripherals[id]->types, peripherals[id]->funcs, userp);
+                }
             }
             last_id = id;
         }
@@ -103,5 +103,13 @@ static void peripheral_detect_task(void* isRight) {
 
 void peripheral_detect_init() {
     xTaskCreate(peripheral_detect_task, "peripheral_detect_left", 1536, NULL, 4, &detect_task_left);
-    //xTaskCreate(peripheral_detect_task, "peripheral_detect_right", 1536, (void*)1, 4, &detect_task_right);
+    xTaskCreate(peripheral_detect_task, "peripheral_detect_right", 1536, (void*)1, 4, &detect_task_right);
+    gpio_set_function(32, GPIO_FUNC_NULL);
+    gpio_set_function(33, GPIO_FUNC_NULL);
+    gpio_set_function(34, GPIO_FUNC_NULL);
+    gpio_set_function(35, GPIO_FUNC_NULL);
+    gpio_set_function(8, GPIO_FUNC_NULL);
+    gpio_set_function(9, GPIO_FUNC_NULL);
+    gpio_set_function(10, GPIO_FUNC_NULL);
+    gpio_set_function(11, GPIO_FUNC_NULL);
 }

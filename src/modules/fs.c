@@ -2,18 +2,28 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sfe_pico_alloc.h>
 #include <sfe_psram.h>
-#include <lfs.h>
+#include "fs.h"
 #include <pico/flash.h>
 #include <hardware/flash.h>
 #include <sfe_pico_boards.h>
 
-extern lfs_t mounts[3];
-
+struct mount mounts[6];
 const void* FLASH_PARTITION = (const void*)0x10200000;
 static bool psramActive = true;
+
+extern const struct fs_impl fs_lfs;
+extern const struct fs_impl fs_fat_sd;
+extern const struct fs_impl fs_fat_usb;
+
+// hack - these are never executed
+void _unlink() {}
+void _link() {}
+void _stat() {}
+void mkdir() {}
 
 static int flash_read(const struct lfs_config *c, lfs_block_t block,
             lfs_off_t off, void *buffer, lfs_size_t size) {
@@ -83,8 +93,14 @@ static struct lfs_config config = {
 };
 
 void fs_init(void) {
-    if (lfs_mount(&mounts[2], &config) < 0) {
-        lfs_format(&mounts[2], &config);
-        lfs_mount(&mounts[2], &config);
+    for (int i = 0; i < 6; i++) {
+        mounts[i].type = FS_MOUNT_TYPE_NONE;
+        mounts[i].impl = NULL;
+    }
+    mounts[2].type = FS_MOUNT_TYPE_LITTLEFS;
+    mounts[2].impl = &fs_lfs;
+    if (lfs_mount(&mounts[2].lfs, &config) < 0) {
+        lfs_format(&mounts[2].lfs, &config);
+        lfs_mount(&mounts[2].lfs, &config);
     }
 }

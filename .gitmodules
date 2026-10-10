@@ -10,3 +10,6 @@
 [submodule "vendor/craftos-base"]
 	path = vendor/craftos-base
 	url = https://github.com/MCJack123/craftos-base
+[submodule "vendor/freertos-fat"]
+	path = vendor/freertos-fat
+	url = https://github.com/carlk3/FreeRTOS-FAT-CLI-for-RPi-Pico

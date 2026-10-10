@@ -31,23 +31,20 @@ include(FreeRTOS_Kernel_import.cmake)
 project(craftos-pico2 C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -DPICO_MALLOC_PANIC=0")
 
 # Initialize the Pico SDK
 pico_sdk_init()
 
 include_directories(craftos2-pico src vendor/sparkfun-pico/sparkfun_pico vendor/littlefs)
 add_executable(craftos-pico2
-    src/main.cpp
-    src/modules/terminal.cpp
-    src/drivers/hid.cpp
-    src/drivers/screen.cpp
+    src/modules/terminal.cpp src/modules/fs.c src/modules/fs_lfs.c src/modules/fs_fat.c
+    src/drivers/hid.cpp src/drivers/screen.cpp src/drivers/audio.c
     src/peripheral/peripheral_detect.cpp
-    src/machine.cpp
-    src/event.cpp
+    src/peripheral/drive.cpp src/peripheral/speaker.cpp src/peripheral/modem.cpp
+    src/machine.cpp src/event.cpp src/funcs.cpp
     src/craftos2_rom.c
-    src/funcs.cpp
-    src/fs.c
+    src/main.cpp
     vendor/littlefs/lfs.c vendor/littlefs/lfs_util.c
 )
 pico_generate_pio_header(craftos-pico2 ${CMAKE_CURRENT_LIST_DIR}/src/peripheral/peripheral_id.pio)
@@ -59,6 +56,7 @@ include(drivers/rgbled/rgbled)
 include(libraries/pico_graphics/pico_graphics)
 add_subdirectory(vendor/sparkfun-pico/sparkfun_pico)
 add_subdirectory(vendor/craftos-base)
+add_subdirectory(vendor/freertos-fat/src/FreeRTOS+FAT+CLI)
 
 pico_enable_stdio_usb(craftos-pico2 0)
 pico_enable_stdio_uart(craftos-pico2 1)
@@ -72,5 +70,6 @@ target_link_libraries(craftos-pico2 PRIVATE
     sparkfun_pico
     tinyusb_host
     craftos-base
+    FreeRTOS+FAT+CLI
 )
 pico_add_extra_outputs(craftos-pico2)

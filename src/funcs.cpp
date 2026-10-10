@@ -6,8 +6,8 @@
 #include <FreeRTOS.h>
 #include <timers.h>
 #include <semphr.h>
-#include <lfs.h>
 #include "event.hpp"
+#include "modules/fs.h"
 
 typedef struct timer {
     int id;
@@ -17,10 +17,6 @@ typedef struct timer {
 
 static int nextTimerID = 0;
 static timer_ll_t* timer_ll_head = NULL, *timer_ll_tail = NULL;
-
-extern "C" {
-    lfs_t mounts[3];
-}
 
 static double F_timestamp() {
     struct timespec ts;
@@ -120,180 +116,133 @@ static void F_mutex_unlock(craftos_mutex_t mutex) {
     xSemaphoreGive((SemaphoreHandle_t)mutex);
 }
 
-typedef struct {
-    lfs_file_t file;
-    lfs_t * mount;
-} F_FILE;
-
-#define FP(fp) ((F_FILE*)(fp))->mount, &((F_FILE*)(fp))->file
-
-// paths are [A-C]:/dir/file
+// paths are [A-F]:/dir/file
 static FILE * F_fopen(const char * file, const char * mode, craftos_machine_t machine) {
-    F_FILE * retval = (F_FILE*)malloc(sizeof(F_FILE));
-    int err = lfs_file_open(&mounts[file[0] - 'A'], &retval->file, file + 3, (mode[0] == 'r' ? LFS_O_RDONLY : LFS_O_WRONLY | LFS_O_CREAT | (mode[0] == 'a' ? LFS_O_APPEND : LFS_O_TRUNC)));
-    if (err != 0) {
-        free(retval);
-        return NULL;
-    }
-    retval->mount = &mounts[file[0] - 'A'];
-    return (FILE*)retval;
+    if (file[0] < 'A' || file[0] > 'F') return NULL;
+    struct mount * m = &mounts[file[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return NULL;
+    return (FILE*)m->impl->fopen(m, file, mode, machine);
 }
 
 static int F_fclose(FILE *fp, craftos_machine_t machine) {
-    int err = lfs_file_close(FP(fp));
-    if (err != 0) return err;
-    free(fp);
-    return 0;
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->fclose(m, (FILE_base*)fp, machine);
 }
 
 static size_t F_fread(void * buf, size_t size, size_t count, FILE * fp, craftos_machine_t machine) {
-    return lfs_file_read(FP(fp), buf, size * count);
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return 0;
+    return m->impl->fread(m, buf, size, count, (FILE_base*)fp, machine);
 }
 
 static size_t F_fwrite(const void * buf, size_t size, size_t count, FILE * fp, craftos_machine_t machine) {
-    return lfs_file_write(FP(fp), buf, size * count);
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return 0;
+    return m->impl->fwrite(m, buf, size, count, (FILE_base*)fp, machine);
 }
 
 static int F_fflush(FILE * fp, craftos_machine_t machine) {
-    return lfs_file_sync(FP(fp));
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->fflush(m, (FILE_base*)fp, machine);
 }
 
 static int F_fgetc(FILE * fp, craftos_machine_t machine) {
-    uint8_t c;
-    int sz = lfs_file_read(FP(fp), &c, 1);
-    if (sz == 0) return EOF;
-    else if (sz < 0) return sz;
-    else return c;
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->fgetc(m, (FILE_base*)fp, machine);
 }
 
 static int F_fputc(int ch, FILE * fp, craftos_machine_t machine) {
-    uint8_t c = ch;
-    int err = lfs_file_write(FP(fp), &ch, 1);
-    if (err > 0) return 0;
-    else return err;
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->fputc(m, ch, (FILE_base*)fp, machine);
 }
 
 static long F_ftell(FILE * fp, craftos_machine_t machine) {
-    return lfs_file_tell(FP(fp));
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->ftell(m, (FILE_base*)fp, machine);
 }
 
 static int F_fseek(FILE * fp, long offset, int origin, craftos_machine_t machine) {
-    return lfs_file_seek(FP(fp), offset, origin);
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->fseek(m, (FILE_base*)fp, offset, origin, machine);
 }
 
 static int F_feof(FILE * fp, craftos_machine_t machine) {
-    return lfs_file_tell(FP(fp)) >= lfs_file_size(FP(fp));
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->feof(m, (FILE_base*)fp, machine);
 }
 
 static int F_ferror(FILE * fp, craftos_machine_t machine) {
-    return ((F_FILE*)fp)->file.flags & LFS_F_ERRED;
-}
-
-// hack - these are never executed
-extern "C" {
-    void _unlink() {}
-    void _link() {}
-    void _stat() {}
-    void mkdir() {}
+    struct mount * m = ((FILE_base*)fp)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->ferror(m, (FILE_base*)fp, machine);
 }
 
 static int F_remove(const char * path, craftos_machine_t machine) {
-    return lfs_remove(&mounts[path[0] - 'A'], path + 3);
+    if (path[0] < 'A' || path[0] > 'F') return -1;
+    struct mount * m = &mounts[path[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->remove(m, path, machine);
 }
 
 static int F_rename(const char * from, const char * to, craftos_machine_t machine) {
-    return lfs_rename(&mounts[from[0] - 'A'], from + 3, to + 3);
+    if (from[0] < 'A' || from[0] > 'F' || from[0] != to[0]) return -1;
+    struct mount * m = &mounts[from[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->rename(m, from, to, machine);
 }
 
 static int F_mkdir(const char * path, int mode, craftos_machine_t machine) {
-    return lfs_mkdir(&mounts[path[0] - 'A'], path + 3);
+    if (path[0] < 'A' || path[0] > 'F') return -1;
+    struct mount * m = &mounts[path[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->mkdir(m, path, mode, machine);
 }
 
 static int F_access(const char * path, int flags, craftos_machine_t machine) {
-    lfs_info info;
-    int err = lfs_stat(&mounts[path[0] - 'A'], path + 3, &info);
-    if (err != 0) return err;
-    if (info.type == LFS_TYPE_DIR) return -1;
-    return 0;
+    if (path[0] < 'A' || path[0] > 'F') return -1;
+    struct mount * m = &mounts[path[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->access(m, path, flags, machine);
 }
 
 static int F_stat(const char * path, struct craftos_stat * st, craftos_machine_t machine) {
-    lfs_info info;
-    int err = lfs_stat(&mounts[path[0] - 'A'], path + 3, &info);
-    if (err != 0) return err;
-    st->st_dev = path[0] - 'A';
-    st->st_ino = 0;
-    st->st_mode = 0777 | (info.type == LFS_TYPE_REG ? 0100000 : 0040000);
-    st->st_nlink = 0;
-    st->st_uid = 0;
-    st->st_gid = 0;
-    st->st_rdev = 0;
-    st->st_size = info.size;
-    st->st_blksize = 1;
-    st->st_blocks = info.size;
-    st->st_atim.tv_sec = 0;
-    st->st_ctim.tv_sec = 0;
-    st->st_mtim.tv_sec = 0;
-    st->st_atim.tv_nsec = 0;
-    st->st_ctim.tv_nsec = 0;
-    st->st_mtim.tv_nsec = 0;
-    return 0;
+    if (path[0] < 'A' || path[0] > 'F') return -1;
+    struct mount * m = &mounts[path[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->stat(m, path, st, machine);
 }
 
 static int F_statvfs(const char * path, struct craftos_statvfs * st, craftos_machine_t machine) {
-    lfs_fsinfo info;
-    int err = lfs_fs_stat(&mounts[path[0] - 'A'], &info);
-    if (err != 0) return err;
-    ssize_t size = lfs_fs_size(&mounts[path[0] - 'A']);
-    if (size < 0) return size;
-    st->f_bsize = info.block_size;
-    st->f_frsize = 1;
-    st->f_blocks = info.block_count;
-    st->f_bfree = info.block_count - size;
-    st->f_bavail = info.block_count - size;
-    st->f_files = 0;
-    st->f_ffree = 0xFFFFFFFF;
-    st->f_favail = 0xFFFFFFFF;
-    st->f_fsid = path[0] - 'A';
-    st->f_flag = 0;
-    st->f_namemax = info.name_max;
-    return 0;
+    if (path[0] < 'A' || path[0] > 'F') return -1;
+    struct mount * m = &mounts[path[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->statvfs(m, path, st, machine);
 }
 
-struct F_DIR {
-    lfs_dir_t dir;
-    lfs_t * mount;
-    craftos_dirent ent;
-};
-
 static craftos_DIR * F_opendir(const char * path, craftos_machine_t machine) {
-    F_DIR * dir = (F_DIR*)malloc(sizeof(F_DIR));
-    int err = lfs_dir_open(&mounts[path[0] - 'A'], &dir->dir, path + 3);
-    if (err != 0) {
-        free(dir);
-        return NULL;
-    }
-    dir->mount = &mounts[path[0] - 'A'];
-    return (craftos_DIR*)dir;
+    if (path[0] < 'A' || path[0] > 'F') return NULL;
+    struct mount * m = &mounts[path[0] - 'A'];
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return NULL;
+    return (craftos_DIR*)m->impl->opendir(m, path, machine);
 }
 
 static int F_closedir(craftos_DIR * dir, craftos_machine_t machine) {
-    int err = lfs_dir_close(((F_DIR*)dir)->mount, &((F_DIR*)dir)->dir);
-    if (err != 0) return err;
-    free(dir);
-    return 0;
+    struct mount * m = ((DIR_base*)dir)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return -1;
+    return m->impl->closedir(m, (DIR_base*)dir, machine);
 }
 
 static struct craftos_dirent * F_readdir(craftos_DIR * dir, craftos_machine_t machine) {
-    F_DIR * d = (F_DIR*)dir;
-    lfs_info info;
-    int err = lfs_dir_read(d->mount, &d->dir, &info);
-    if (err == 0) return NULL;
-    strncpy(d->ent.d_name, info.name, 256);
-    d->ent.d_namlen = strnlen(info.name, LFS_NAME_MAX+1);
-    d->ent.d_reclen = sizeof(craftos_dirent);
-    d->ent.d_type = info.type;
-    return &d->ent;
+    struct mount * m = ((DIR_base*)dir)->mount;
+    if (m->type == FS_MOUNT_TYPE_NONE || m->impl == NULL) return NULL;
+    return m->impl->readdir(m, (DIR_base*)dir, machine);
 }
 
 extern "C" const craftos_func_t F_func = {
