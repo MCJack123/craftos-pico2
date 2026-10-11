@@ -7,6 +7,7 @@
 #include <ff_stdio.h>
 #include <ff_utils.h>
 #include <ff_dir.h>
+#include <pico/aon_timer.h>
 
 typedef struct {
     struct mount * mount;
@@ -14,6 +15,13 @@ typedef struct {
 } F_FILE;
 
 #define FP(fp) (((F_FILE*)(fp))->file)
+
+time_t FreeRTOS_time(time_t* pxTime) {
+    struct timespec time;
+    aon_timer_get_time(&time);
+    if (pxTime) *pxTime = time.tv_sec;
+    return time.tv_sec;
+}
 
 static FILE_base * fs_fat_fopen(struct mount * mount, const char * file, const char * mode, craftos_machine_t machine) {
     F_FILE * retval = (F_FILE*)malloc(sizeof(F_FILE));
@@ -42,7 +50,7 @@ static size_t fs_fat_fwrite(struct mount * mount, const void * buf, size_t size,
 }
 
 static int fs_fat_fflush(struct mount * mount, FILE_base * fp, craftos_machine_t machine) {
-    return ff_fflush(FP(fp));
+    return FF_FlushCache(mount->fat.disk->pxIOManager);
 }
 
 static int fs_fat_fgetc(struct mount * mount, FILE_base * fp, craftos_machine_t machine) {
@@ -155,7 +163,7 @@ struct F_DIR {
 
 static DIR_base * fs_fat_opendir(struct mount * mount, const char * path, craftos_machine_t machine) {
     struct F_DIR * dir = (struct F_DIR*)malloc(sizeof(struct F_DIR));
-    int err = FF_FindFirst(mount->fat.disk->pxIOManager, &dir->dir, path);
+    int err = FF_FindFirst(mount->fat.disk->pxIOManager, &dir->dir, path + 2);
     if (err != 0) {
         free(dir);
         return NULL;

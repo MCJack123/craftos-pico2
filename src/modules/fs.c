@@ -10,14 +10,11 @@
 #include <pico/flash.h>
 #include <hardware/flash.h>
 #include <sfe_pico_boards.h>
+#include <ff_sddisk.h>
 
 struct mount mounts[6];
 const void* FLASH_PARTITION = (const void*)0x10200000;
 static bool psramActive = true;
-
-extern const struct fs_impl fs_lfs;
-extern const struct fs_impl fs_fat_sd;
-extern const struct fs_impl fs_fat_usb;
 
 // hack - these are never executed
 void _unlink() {}
@@ -103,4 +100,5 @@ void fs_init(void) {
         lfs_format(&mounts[2].lfs, &config);
         lfs_mount(&mounts[2].lfs, &config);
     }
+    sd_init_driver(); // init early so we don't interfere with the screen on right (spi0)
 }

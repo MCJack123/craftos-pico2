@@ -8,14 +8,14 @@
 #include <craftos.h>
 #include "../event.hpp"
 #include "peripheral.hpp"
+#include "../drivers/1wire.h"
 
 extern "C" {
     extern craftos_machine_t machine;
 }
 
-SemaphoreHandle_t onewire_lock[2];
-OW onewire_inst[2];
-
+static SemaphoreHandle_t onewire_lock[2];
+static OW onewire_inst[2];
 static TaskHandle_t detect_task_left, detect_task_right;
 static struct peripheral * peripherals[8] = {
     NULL,
@@ -35,6 +35,19 @@ static struct peripheral * peripherals[8] = {
 //     event.character.c = 'X';
 //     event_push_isr(&event);
 // }
+
+int peripheral_detect_query(bool right, uint8_t cmd) {
+    int retval = -1;
+    OW *ow_inst = &onewire_inst[right ? 1 : 0];
+    SemaphoreHandle_t lock = onewire_lock[right ? 1 : 0];
+    xSemaphoreTake(lock, portMAX_DELAY);
+    if (ow_reset(ow_inst)) {
+        ow_send(ow_inst, cmd);
+        retval = ow_read(ow_inst);
+    }
+    xSemaphoreGive(lock);
+    return retval;
+}
 
 static void peripheral_detect_task(void* isRight) {
     const uint led_pin = isRight ? 36 : 7;
@@ -56,10 +69,8 @@ static void peripheral_detect_task(void* isRight) {
     int last_id = -1;
     void* userp = NULL;
     while (true) {
-        xSemaphoreTake(lock, portMAX_DELAY);
-        if (ow_reset(ow_inst)) {
-            ow_send(ow_inst, PERIPHERAL_CMD_GET_TYPE);
-            uint8_t id = ow_read(ow_inst);
+        int id = peripheral_detect_query(isRight != NULL, PERIPHERAL_CMD_GET_TYPE);
+        if (id != -1) {
             if (last_id != -1 && last_id != id && peripherals[last_id] != NULL && userp != NULL) {
                 peripherals[last_id]->close(userp);
                 event_t event;
@@ -90,7 +101,6 @@ static void peripheral_detect_task(void* isRight) {
             craftos_machine_peripheral_detach(machine, isRight ? "right" : "left");
             last_id = -1;
         }
-        xSemaphoreGive(lock);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

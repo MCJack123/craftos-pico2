@@ -59,6 +59,8 @@ struct mount {
 };
 
 extern struct mount mounts[6];
+extern const struct fs_impl fs_lfs;
+extern const struct fs_impl fs_fat;
 
 void fs_init(void);
 

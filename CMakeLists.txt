@@ -31,7 +31,8 @@ include(FreeRTOS_Kernel_import.cmake)
 project(craftos-pico2 C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -DPICO_MALLOC_PANIC=0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPICO_MALLOC_PANIC=0")
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 
 # Initialize the Pico SDK
 pico_sdk_init()

@@ -183,7 +183,7 @@ static void __isr __time_critical_func(dma_handler)()
  * @param audio_pin Audio pin number
  * @param sample_freq Sample frequency
  */
-audio_output_t audio_init(int audio_pin, int sample_freq)
+audio_output_t audio_init(int audio_pin, int sample_freq) /* TODO: IRQ number */
 {
   int output_num = 0;
   for (; output_num < AUDIO_MAX_OUTPUTS && outputs[output_num].active; output_num++);
