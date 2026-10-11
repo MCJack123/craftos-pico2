@@ -65,6 +65,7 @@ static void peripheral_detect_task(void* isRight) {
     uint offset = pio_add_program(pio, &onewire_program);
 
     ow_init(ow_inst, pio, offset, led_pin);
+    while (machine == NULL) vTaskDelay(1);
 
     int last_id = -1;
     void* userp = NULL;

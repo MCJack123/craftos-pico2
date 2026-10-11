@@ -15,6 +15,11 @@ void my_assert_func(const char *file, int line, const char *func, const char *pr
 extern craftos_machine_t machine;
 }
 
+static struct disk_info {
+    TaskHandle_t task;
+    struct mount * mount_handle;
+} disks[2] = {{NULL, &mounts[0]}, {NULL, &mounts[1]}};
+
 /* Configuration of RP2040 hardware SPI object */
 static spi_t spi_left = {
     .hw_inst = spi1,  // RP2040 SPI component
@@ -83,6 +88,68 @@ sd_card_t *sd_get_by_num(size_t num) {
     }
 }
 
+static int drive_isDiskPresent(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    lua_pushboolean(L, m->type == FS_MOUNT_TYPE_FAT_SD);
+    return 1;
+}
+
+static int drive_getDiskLabel(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    if (m->type != FS_MOUNT_TYPE_FAT_SD) return 0;
+    const char * label = m->fat.disk->pxIOManager->xPartition.pcVolumeLabel;
+    int len = 11;
+    while (len > 0 && (label[len-1] == ' ' || label[len-1] == 0)) len--;
+    lua_pushlstring(L, m->fat.disk->pxIOManager->xPartition.pcVolumeLabel, len);
+    return 1;
+}
+
+static int drive_setDiskLabel(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    lua_remove(L, 1);
+    if (m->type != FS_MOUNT_TYPE_FAT_SD) return luaL_error(L, "no disk inserted");
+    /* TODO: this doesn't write to disk */
+    strncpy(m->fat.disk->pxIOManager->xPartition.pcVolumeLabel, luaL_checkstring(L, 1), 11);
+    return 0;
+}
+
+static int drive_hasData(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    lua_pushboolean(L, m->type == FS_MOUNT_TYPE_FAT_SD);
+    return 1;
+}
+
+static int drive_getMountPath(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    if (m->type != FS_MOUNT_TYPE_FAT_SD) return 0;
+    lua_pushstring(L, m == mounts ? "disk" : "disk2");
+    return 1;
+}
+
+static int drive_hasAudio(lua_State *L) {
+    lua_pushboolean(L, false);
+    return 1;
+}
+
+static int drive_getAudioTitle(lua_State *L) {
+    return 0;
+}
+
+static int drive_playAudio(lua_State *L) {
+    return 0;
+}
+
+static int drive_stopAudio(lua_State *L) {
+    return 0;
+}
+
+static int drive_getDiskID(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    if (m->type != FS_MOUNT_TYPE_FAT_SD) return 0;
+    lua_pushinteger(L, *(uint32_t*)&((sd_card_t*)m->fat.disk->pvTag)->state.CID[3]);
+    return 1;
+}
+
 static bool drive_mount(bool right) {
     // why does the driver reset SS on deinit but not set it up on init?
     sd_spi_if_t * sd = right ? &spi_if_right : &spi_if_left;
@@ -113,6 +180,7 @@ static bool drive_mount(bool right) {
 }
 
 static void drive_unmount(bool right) {
+    if (mounts[right ? 1 : 0].type == NULL) return;
     craftos_machine_unmount(machine, right ? "/disk2" : "/disk");
     FF_FS_Remove(right ? "B:" : "A:");
     mounts[right ? 1 : 0].type = FS_MOUNT_TYPE_NONE;
@@ -123,6 +191,13 @@ static void drive_unmount(bool right) {
     event.type = EVENT_TYPE_DISK_EJECT;
     event.peripheral.side = right ? "right" : "left";
     event_push(&event);
+}
+
+static int drive_ejectDisk(lua_State *L) {
+    struct mount * m = ((disk_info*)lua_touserdata(L, 1))->mount_handle;
+    if (m->type != FS_MOUNT_TYPE_FAT_SD) return 0;
+    drive_unmount(m != mounts);
+    return 0;
 }
 
 static void drive_poll(void* isRight) {
@@ -157,15 +232,27 @@ static int drive_open(bool right, void** userp_out) {
     gpio_put(sd->ss_gpio, 1);  // Avoid any glitches when enabling output
     gpio_set_dir(sd->ss_gpio, GPIO_OUT);
     gpio_put(sd->ss_gpio, 1);
-    xTaskCreate(drive_poll, "drive poll", 1536, right ? (void*)1 : NULL, 2, (TaskHandle_t*)userp_out);
+    xTaskCreate(drive_poll, "drive poll", 1536, right ? (void*)1 : NULL, 2, &disks[right ? 1 : 0].task);
+    *userp_out = &disks[right ? 1 : 0];
     return 0;
 }
 
 static void drive_close(void* userp) {
-    xTaskNotify((TaskHandle_t)userp, 1, eIncrement);
+    xTaskNotify(((disk_info*)userp)->task, 1, eIncrement);
 }
 
 static const luaL_Reg peripheral_methods[] = {
+    {"isDiskPresent", drive_isDiskPresent},
+    {"getDiskLabel", drive_getDiskLabel},
+    {"setDiskLabel", drive_setDiskLabel},
+    {"hasData", drive_hasData},
+    {"getMountPath", drive_getMountPath},
+    {"hasAudio", drive_hasAudio},
+    {"getAudioTitle", drive_getAudioTitle},
+    {"playAudio", drive_playAudio},
+    {"stopAudio", drive_stopAudio},
+    {"ejectDisk", drive_ejectDisk},
+    {"getDiskID", drive_getDiskID},
     {NULL, NULL}
 };
 
