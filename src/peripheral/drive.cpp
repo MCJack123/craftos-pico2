@@ -26,7 +26,7 @@ static spi_t spi_left = {
     .miso_gpio = 8,
     .mosi_gpio = 11,
     .sck_gpio = 10,    // GPIO number (not Pico pin number)
-    .baud_rate = 12 * 1000 * 1000,  // Actual frequency: 10416666.
+    .baud_rate = 62500000,  // Actual frequency: 10416666.
     .DMA_IRQ_num = DMA_IRQ_1
 };
 
@@ -54,7 +54,7 @@ static spi_t spi_right = {
     .miso_gpio = 32,
     .mosi_gpio = 35,
     .sck_gpio = 34,    // GPIO number (not Pico pin number)
-    .baud_rate = 12 * 1000 * 1000,  // Actual frequency: 10416666.
+    .baud_rate = 62500000,  // Actual frequency: 10416666.
     .DMA_IRQ_num = DMA_IRQ_0
 };
 
@@ -180,7 +180,7 @@ static bool drive_mount(bool right) {
 }
 
 static void drive_unmount(bool right) {
-    if (mounts[right ? 1 : 0].type == NULL) return;
+    if (mounts[right ? 1 : 0].type == FS_MOUNT_TYPE_NONE) return;
     craftos_machine_unmount(machine, right ? "/disk2" : "/disk");
     FF_FS_Remove(right ? "B:" : "A:");
     mounts[right ? 1 : 0].type = FS_MOUNT_TYPE_NONE;
@@ -232,7 +232,7 @@ static int drive_open(bool right, void** userp_out) {
     gpio_put(sd->ss_gpio, 1);  // Avoid any glitches when enabling output
     gpio_set_dir(sd->ss_gpio, GPIO_OUT);
     gpio_put(sd->ss_gpio, 1);
-    xTaskCreate(drive_poll, "drive poll", 1536, right ? (void*)1 : NULL, 2, &disks[right ? 1 : 0].task);
+    xTaskCreate(drive_poll, "drive poll", 1536, right ? (void*)1 : NULL, 3, &disks[right ? 1 : 0].task);
     *userp_out = &disks[right ? 1 : 0];
     return 0;
 }

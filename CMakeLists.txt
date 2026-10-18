@@ -13,6 +13,7 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 set(PICO_BOARD pimoroni_pico_plus2_rp2350 CACHE STRING "Board type")
+set(PICO_CYW43_SUPPORTED ON)
 
 cmake_minimum_required(VERSION 3.12)
 
@@ -31,7 +32,8 @@ include(FreeRTOS_Kernel_import.cmake)
 project(craftos-pico2 C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPICO_MALLOC_PANIC=0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPICO_MALLOC_PANIC=0 -DPICO_MAX_SHARED_IRQ_HANDLERS=8 -DCYW43_CONFIG_FILE='<cyw43_config_craftos.h>'")
+set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -DPICO_MAX_SHARED_IRQ_HANDLERS=8")
 set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 
 # Initialize the Pico SDK
@@ -103,6 +105,7 @@ pico_set_printf_implementation(craftos-pico2 compiler)
 
 target_link_libraries(craftos-pico2 PRIVATE
     pico_multicore pico_stdlib pico_platform pico_flash pico_time pico_aon_timer pico_sync
+    pico_cyw43_driver pico_cyw43_arch_lwip_sys_freertos pico_lwip pico_async_context_freertos
     hardware_pwm hardware_spi hardware_dma hardware_pio hardware_flash hardware_adc hardware_clocks hardware_timer
     st7789 rgbled pico_graphics
     FreeRTOS-Kernel FreeRTOS-Kernel-Heap4

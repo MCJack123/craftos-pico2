@@ -7,6 +7,7 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
+#include "hardware/claim.h"
 
 #include "1wire.h"
 
@@ -60,6 +61,11 @@ uint8_t ow_read (OW *ow) {
 // ow: pointer to an OW driver struct
 bool ow_reset (OW *ow) {
     //pio_sm_clear_fifos(ow->pio, ow->sm);
+    // the SDK gets mad if we try to change the base while running, so we'll do it directly
+    uint32_t save = hw_claim_lock();
+    pio2->gpiobase = ow->gpio > 31 ? 16 : 0;
+    hw_claim_unlock(save);
+    pio_set_gpio_base(ow->pio, ow->gpio > 31 ? 16 : 0);
     pio_sm_exec_wait_blocking (ow->pio, ow->sm, ow->jmp_reset);
     if ((pio_sm_get_blocking (ow->pio, ow->sm) & 1) == 0) {     // apply pin mask (see pio program)
         return true;    // a slave pulled the bus low

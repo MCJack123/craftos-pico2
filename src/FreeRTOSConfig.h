@@ -53,7 +53,7 @@
  * settings.  Your application will certainly need a different value so set this
  * correctly. This is very often, but not always, equal to the main system clock
  * frequency. */
-#define configCPU_CLOCK_HZ    ( ( unsigned long ) 20000000 )
+#define configCPU_CLOCK_HZ    ( ( unsigned long ) 125000000 )
 
 /* configSYSTICK_CLOCK_HZ is an optional parameter for ARM Cortex-M ports only.
  *
@@ -82,7 +82,7 @@
 /* Set configUSE_PREEMPTION to 1 to use pre-emptive scheduling.  Set
  * configUSE_PREEMPTION to 0 to use co-operative scheduling.
  * See https://www.freertos.org/single-core-amp-smp-rtos-scheduling.html. */
-#define configUSE_PREEMPTION                       0
+#define configUSE_PREEMPTION                       1
 
 /* Set configUSE_TIME_SLICING to 1 to have the scheduler switch between Ready
  * state tasks of equal priority on every tick interrupt.  Set
@@ -153,12 +153,12 @@
 /* configQUEUE_REGISTRY_SIZE sets the maximum number of queues and semaphores
  * that can be referenced from the queue registry.  Only required when using a
  * kernel aware debugger.  Defaults to 0 if left undefined. */
-#define configQUEUE_REGISTRY_SIZE                  0
+#define configQUEUE_REGISTRY_SIZE                  4
 
 /* Set configENABLE_BACKWARD_COMPATIBILITY to 1 to map function names and
  * datatypes from old version of FreeRTOS to their latest equivalent.  Defaults
  * to 1 if left undefined. */
-#define configENABLE_BACKWARD_COMPATIBILITY        0
+#define configENABLE_BACKWARD_COMPATIBILITY        1
 
 /* Each task has its own array of pointers that can be used as thread local
  * storage.  configNUM_THREAD_LOCAL_STORAGE_POINTERS set the number of indexes
@@ -362,7 +362,7 @@
  * configCHECK_FOR_STACK_OVERFLOW is set to 1. See
  * https://www.freertos.org/Stacks-and-stack-overflow-checking.html  Defaults to
  * 0 if left undefined. */
-#define configCHECK_FOR_STACK_OVERFLOW        2
+#define configCHECK_FOR_STACK_OVERFLOW        1
 
 /******************************************************************************/
 /* Run time and task stats gathering related definitions. *********************/
@@ -514,7 +514,7 @@
  * is able to run. If configRUN_MULTIPLE_PRIORITIES is set to 1, multiple tasks
  * with different priorities may run simultaneously - so a higher and lower
  * priority task may run on different cores at the same time. */
-#define configRUN_MULTIPLE_PRIORITIES             0
+#define configRUN_MULTIPLE_PRIORITIES             1
 
 /* When using SMP (i.e. configNUMBER_OF_CORES is greater than one), set
  * configUSE_CORE_AFFINITY to 1 to enable core affinity feature. When core
@@ -532,7 +532,7 @@
  * value is useful, if swapping tasks between cores is not supported (e.g.
  * Tricore) or if legacy code should be controlled. Defaults to tskNO_AFFINITY
  * if left undefined. */
-#define configTASK_DEFAULT_CORE_AFFINITY          tskNO_AFFINITY
+#define configTASK_DEFAULT_CORE_AFFINITY          2
 
 /* When using SMP (i.e. configNUMBER_OF_CORES is greater than one), if
  * configUSE_TASK_PREEMPTION_DISABLE is set to 1, individual tasks can be set to
@@ -550,7 +550,7 @@
  * configTIMER_SERVICE_TASK_CORE_AFFINITY allows the application writer to set
  * the core affinity of the RTOS Daemon/Timer Service task. Defaults to
  * tskNO_AFFINITY if left undefined. */
-#define configTIMER_SERVICE_TASK_CORE_AFFINITY    tskNO_AFFINITY
+#define configTIMER_SERVICE_TASK_CORE_AFFINITY    2
 
 /******************************************************************************/
 /* ARMv8-M secure side port related definitions. ******************************/
@@ -653,7 +653,7 @@
 #define INCLUDE_xTaskGetSchedulerState         1
 #define INCLUDE_xTaskGetCurrentTaskHandle      1
 #define INCLUDE_uxTaskGetStackHighWaterMark    0
-#define INCLUDE_xTaskGetIdleTaskHandle         0
+#define INCLUDE_xTaskGetIdleTaskHandle         1
 #define INCLUDE_eTaskGetState                  0
 #define INCLUDE_xEventGroupSetBitFromISR       1
 #define INCLUDE_xTimerPendFunctionCall         1

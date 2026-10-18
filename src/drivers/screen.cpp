@@ -42,9 +42,14 @@ int screen_init(void) {
     display.set_backlight(0);
     led.set_rgb(0, 0, 0);
     memset(framebuffer, 0, sizeof(framebuffer));
+    // SD card sets baud rate (much) lower, reset to intended rate when drawing
+    uint32_t baud = spi_get_baudrate(spi0);
+    spi_set_baudrate(spi0, 62'500'000);
     display.update(&graphics);
+    spi_set_baudrate(spi0, baud);
     screen_sem = xSemaphoreCreateBinary();
-    xTaskCreate(screen_task, "screen", 512, NULL, 1, NULL);
+    vQueueAddToRegistry(screen_sem, "screen_sem");
+    xTaskCreate(screen_task, "screen", 512, NULL, 2, NULL);
     char id = 10;
     xTimerStart(xTimerCreate("graphics enable", pdMS_TO_TICKS(250), pdFALSE, &id, enable_graphics), 0);
     return 0;

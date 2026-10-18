@@ -5,19 +5,19 @@
 static QueueHandle_t queue = NULL;
 
 void event_push(const event_t* event) {
-    if (queue == NULL) queue = xQueueCreate(256, sizeof(event_t));
+    if (queue == NULL) {queue = xQueueCreate(256, sizeof(event_t)); vQueueAddToRegistry(queue, "events");}
     xQueueSend(queue, event, 0);
 }
 
 BaseType_t event_push_isr(const event_t* event) {
-    if (queue == NULL) queue = xQueueCreate(256, sizeof(event_t));
+    if (queue == NULL) {queue = xQueueCreate(256, sizeof(event_t)); vQueueAddToRegistry(queue, "events");}
     BaseType_t should_yield = pdFALSE;
     xQueueSendFromISR(queue, event, &should_yield);
     return should_yield;
 }
 
 void event_wait(event_t* event) {
-    if (queue == NULL) queue = xQueueCreate(256, sizeof(event_t));
+    if (queue == NULL) {queue = xQueueCreate(256, sizeof(event_t)); vQueueAddToRegistry(queue, "events");}
     xQueueReceive(queue, event, portMAX_DELAY);
 }
 

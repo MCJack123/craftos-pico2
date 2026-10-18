@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 #include <FreeRTOS.h>
 #include <timers.h>
 #include <semphr.h>
@@ -14,21 +15,27 @@
 static TaskHandle_t timer;
 
 extern "C" craftos_machine_t machine;
+extern "C" const craftos_func_t F_func;
 
 static void terminal_task(void*) {
     while (machine == NULL) vTaskDelay(pdMS_TO_TICKS(30));
     TickType_t start = xTaskGetTickCount();
     while (true) {
-        if (machine != NULL) craftos_terminal_render(machine->term, framebuffer, FB_WIDTH * 2, 16, 1, 1);
+        int changed = 0;
+        if (machine != NULL) {
+            int blink = fmod(F_func.timestamp(), 1000.0) >= 500.0;
+            changed = machine->term->changed || (machine->term->canBlink && blink != machine->term->blink);
+            craftos_terminal_render(machine->term, framebuffer, FB_WIDTH * 2, 16, 1, 1);
+        }
         //rgbLEDColor = cursorOn ? 0x004000 : 0x004000;
-        screen_update();
+        if (changed) screen_update();
         vTaskDelay(pdMS_TO_TICKS(50));
     }
     vTaskDelete(NULL);
 }
 
 void terminal_init(void) {
-    xTaskCreate(terminal_task, "terminal", 1536, NULL, 4, &timer);
+    xTaskCreate(terminal_task, "terminal", 1536, NULL, 2, &timer);
     //blinkTimer = xTimerCreate("terminalBlink", pdMS_TO_TICKS(400), pdTRUE, &blinkTimerID, terminal_blink_task);
     //xTimerStart(blinkTimer, 0);
 }

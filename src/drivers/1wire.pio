@@ -55,6 +55,7 @@ loop_d: jmp x-- loop_d  side 1  [15]    ;                                   3 x 
 % c-sdk {
 static inline void onewire_sm_init (PIO pio, uint sm, uint offset, uint pin_num, uint bits_per_word) {
 
+    if (pin_num > 31) pin_num -= 16;
     // create a new state machine configuration
     pio_sm_config c = onewire_program_get_default_config (offset);
 

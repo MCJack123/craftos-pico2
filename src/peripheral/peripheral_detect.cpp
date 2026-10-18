@@ -14,9 +14,9 @@ extern "C" {
     extern craftos_machine_t machine;
 }
 
-static SemaphoreHandle_t onewire_lock[2];
+static SemaphoreHandle_t onewire_lock;
 static OW onewire_inst[2];
-static TaskHandle_t detect_task_left, detect_task_right;
+static TaskHandle_t detect_task;
 static struct peripheral * peripherals[8] = {
     NULL,
     &peripheral_drive,
@@ -28,89 +28,75 @@ static struct peripheral * peripherals[8] = {
     NULL
 };
 
-// static void unplug(void) {
-//     // do nothing
-//     event_t event;
-//     event.type = EVENT_TYPE_CHAR;
-//     event.character.c = 'X';
-//     event_push_isr(&event);
-// }
-
 int peripheral_detect_query(bool right, uint8_t cmd) {
     int retval = -1;
     OW *ow_inst = &onewire_inst[right ? 1 : 0];
-    SemaphoreHandle_t lock = onewire_lock[right ? 1 : 0];
-    xSemaphoreTake(lock, portMAX_DELAY);
+    xSemaphoreTake(onewire_lock, portMAX_DELAY);
     if (ow_reset(ow_inst)) {
         ow_send(ow_inst, cmd);
         retval = ow_read(ow_inst);
     }
-    xSemaphoreGive(lock);
+    xSemaphoreGive(onewire_lock);
     return retval;
 }
 
-static void peripheral_detect_task(void* isRight) {
-    const uint led_pin = isRight ? 36 : 7;
-    OW *ow_inst = &onewire_inst[(int)isRight];
-    SemaphoreHandle_t lock = onewire_lock[(int)isRight];
-
+static void peripheral_detect_task(void* unused) {
     // Choose PIO instance (0 or 1)
-    PIO pio = isRight ? pio1 : pio0;
-
-    // Get first free state machine in PIO 0
-    uint sm = pio_claim_unused_sm(pio, true);
+    PIO pio = pio2;
 
     // Add PIO program to PIO instruction memory. SDK will find location and
     // return with the memory offset of the program.
     uint offset = pio_add_program(pio, &onewire_program);
 
-    ow_init(ow_inst, pio, offset, led_pin);
+    ow_init(&onewire_inst[0], pio, offset, 7);  // left
+    ow_init(&onewire_inst[1], pio, offset, 36); // right
     while (machine == NULL) vTaskDelay(1);
 
-    int last_id = -1;
-    void* userp = NULL;
+    int last_id[2] = {-1, -1};
+    void* userp[2] = {NULL, NULL};
     while (true) {
-        int id = peripheral_detect_query(isRight != NULL, PERIPHERAL_CMD_GET_TYPE);
-        if (id != -1) {
-            if (last_id != -1 && last_id != id && peripherals[last_id] != NULL && userp != NULL) {
-                peripherals[last_id]->close(userp);
+        for (int isRight = 0; isRight < 2; isRight++) {
+            int id = peripheral_detect_query(isRight, PERIPHERAL_CMD_GET_TYPE);
+            if (id != -1) {
+                if (last_id[isRight] != -1 && last_id[isRight] != id && peripherals[last_id[isRight]] != NULL && userp[isRight] != NULL) {
+                    peripherals[last_id[isRight]]->close(userp[isRight]);
+                    event_t event;
+                    event.type = EVENT_TYPE_PERIPHERAL_DETACH;
+                    event.peripheral.side = isRight ? "right" : "left";
+                    event_push(&event);
+                    craftos_machine_peripheral_detach(machine, isRight ? "right" : "left");
+                    last_id[isRight] = -1;
+                }
+                if (last_id[isRight] == -1 && id < 8) {
+                    if (peripherals[id] != NULL) {
+                        if (peripherals[id]->open(isRight, &userp[isRight]) == 0) {
+                            event_t event;
+                            event.type = EVENT_TYPE_PERIPHERAL;
+                            event.peripheral.side = isRight ? "right" : "left";
+                            event_push(&event);
+                            craftos_machine_peripheral_attach(machine, isRight ? "right" : "left", peripherals[id]->types, peripherals[id]->funcs, userp[isRight]);
+                        }
+                    }
+                    last_id[isRight] = id;
+                }
+            } else if (last_id[isRight] != -1 && peripherals[last_id[isRight]] != NULL) {
+                peripherals[last_id[isRight]]->close(userp[isRight]);
                 event_t event;
                 event.type = EVENT_TYPE_PERIPHERAL_DETACH;
                 event.peripheral.side = isRight ? "right" : "left";
                 event_push(&event);
                 craftos_machine_peripheral_detach(machine, isRight ? "right" : "left");
-                last_id = -1;
+                last_id[isRight] = -1;
             }
-            if (last_id == -1 && id < 8) {
-                if (peripherals[id] != NULL) {
-                    if (peripherals[id]->open(isRight, &userp) == 0) {
-                        event_t event;
-                        event.type = EVENT_TYPE_PERIPHERAL;
-                        event.peripheral.side = isRight ? "right" : "left";
-                        event_push(&event);
-                        craftos_machine_peripheral_attach(machine, isRight ? "right" : "left", peripherals[id]->types, peripherals[id]->funcs, userp);
-                    }
-                }
-                last_id = id;
-            }
-        } else if (last_id != -1) {
-            peripherals[last_id]->close(userp);
-            event_t event;
-            event.type = EVENT_TYPE_PERIPHERAL_DETACH;
-            event.peripheral.side = isRight ? "right" : "left";
-            event_push(&event);
-            craftos_machine_peripheral_detach(machine, isRight ? "right" : "left");
-            last_id = -1;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
 void peripheral_detect_init() {
-    onewire_lock[0] = xSemaphoreCreateMutex();
-    onewire_lock[1] = xSemaphoreCreateMutex();
-    xTaskCreate(peripheral_detect_task, "peripheral_detect_left", 1536, NULL, 4, &detect_task_left);
-    xTaskCreate(peripheral_detect_task, "peripheral_detect_right", 1536, (void*)1, 4, &detect_task_right);
+    onewire_lock = xSemaphoreCreateMutex();
+    vQueueAddToRegistry(onewire_lock, "onewire_lock");
+    xTaskCreate(peripheral_detect_task, "peripheral_detect", 1536, NULL, 4, &detect_task);
     gpio_set_function(32, GPIO_FUNC_NULL);
     gpio_set_function(33, GPIO_FUNC_NULL);
     gpio_set_function(34, GPIO_FUNC_NULL);

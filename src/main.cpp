@@ -31,10 +31,11 @@ extern "C" {
 }
 
 void app_main(void* arg) {
+    vTaskCoreAffinitySet(xTaskGetIdleTaskHandleForCore(0), 1);
     craftos_init(&F_func);
+    fs_init();
     screen_init();
     terminal_init();
-    fs_init();
     hid_init();
     peripheral_detect_init();
     timespec now;
@@ -46,7 +47,7 @@ void app_main(void* arg) {
 
 int main(void) {
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
-    xTaskCreate(app_main, "main", 16384, NULL, 3, &mainTask);
+    xTaskCreateAffinitySet(app_main, "main", 16384, NULL, 1, 1, &mainTask);
     vTaskStartScheduler();
     return 0;
 }

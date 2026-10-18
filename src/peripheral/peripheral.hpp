@@ -11,7 +11,7 @@ extern "C" {
 #define PERIPHERAL_CMD_GET_PORT 2
 
 struct peripheral {
-    const char * types[2];
+    const char * types[3];
     const luaL_Reg * funcs;
     int (*open)(bool right, void** userp_out);
     void (*close)(void* userp);
