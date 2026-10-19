@@ -57,6 +57,7 @@ static void peripheral_detect_task(void* unused) {
     while (true) {
         for (int isRight = 0; isRight < 2; isRight++) {
             int id = peripheral_detect_query(isRight, PERIPHERAL_CMD_GET_TYPE);
+            for (int i = 0; i < 5; i++) if (peripheral_detect_query(isRight, PERIPHERAL_CMD_GET_TYPE) != id) goto skip;
             if (id != -1) {
                 if (last_id[isRight] != -1 && last_id[isRight] != id && peripherals[last_id[isRight]] != NULL && userp[isRight] != NULL) {
                     peripherals[last_id[isRight]]->close(userp[isRight]);
@@ -88,6 +89,7 @@ static void peripheral_detect_task(void* unused) {
                 craftos_machine_peripheral_detach(machine, isRight ? "right" : "left");
                 last_id[isRight] = -1;
             }
+            skip: (void)0;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }

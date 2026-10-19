@@ -26,7 +26,7 @@ static spi_t spi_left = {
     .miso_gpio = 8,
     .mosi_gpio = 11,
     .sck_gpio = 10,    // GPIO number (not Pico pin number)
-    .baud_rate = 62500000,  // Actual frequency: 10416666.
+    .baud_rate = 12'000'000,  // Actual frequency: 10416666.
     .DMA_IRQ_num = DMA_IRQ_1
 };
 
@@ -45,7 +45,8 @@ static sd_card_t sd_card_left = {
     // "mount_point" must be a directory off the file system's root directory and must be an absolute path:
     .mount_point = "A:",
     .type = SD_IF_SPI,
-    .spi_if_p = &spi_if_left  // Pointer to the SPI interface driving this card
+    .spi_if_p = &spi_if_left,  // Pointer to the SPI interface driving this card
+    .cache_sectors = 32
 };
 
 /* Configuration of RP2040 hardware SPI object */
@@ -54,7 +55,7 @@ static spi_t spi_right = {
     .miso_gpio = 32,
     .mosi_gpio = 35,
     .sck_gpio = 34,    // GPIO number (not Pico pin number)
-    .baud_rate = 62500000,  // Actual frequency: 10416666.
+    .baud_rate = 12'000'000,  // Actual frequency: 10416666.
     .DMA_IRQ_num = DMA_IRQ_0
 };
 
@@ -73,7 +74,8 @@ static sd_card_t sd_card_right = {
     // "mount_point" must be a directory off the file system's root directory and must be an absolute path:
     .mount_point = "B:",
     .type = SD_IF_SPI,
-    .spi_if_p = &spi_if_right  // Pointer to the SPI interface driving this card
+    .spi_if_p = &spi_if_right,  // Pointer to the SPI interface driving this card
+    .cache_sectors = 32
 };
 
 /* ********************************************************************** */
@@ -185,7 +187,7 @@ static void drive_unmount(bool right) {
     FF_FS_Remove(right ? "B:" : "A:");
     mounts[right ? 1 : 0].type = FS_MOUNT_TYPE_NONE;
     mounts[right ? 1 : 0].impl = NULL;
-    FF_Unmount(mounts[right ? 1 : 0].fat.disk);
+    FF_SDDiskUnmount(mounts[right ? 1 : 0].fat.disk);
     FF_SDDiskDelete(mounts[right ? 1 : 0].fat.disk);
     event_t event;
     event.type = EVENT_TYPE_DISK_EJECT;
@@ -207,11 +209,19 @@ static void drive_poll(void* isRight) {
         int port = peripheral_detect_query(isRight != NULL, PERIPHERAL_CMD_GET_PORT);
         if (port != -1) {
             bool detect = port & 0x20;
-            if (detect && !isMounted) {
-                vTaskDelay(pdMS_TO_TICKS(1000)); // wait for SD card to be fully inserted/debounce
-                mountSuccess = drive_mount(isRight != NULL);
-            } else if (!detect && isMounted && mountSuccess) drive_unmount(isRight != NULL);
-            isMounted = detect;
+            // debounce
+            for (int i = 0; i < 5; i++) {
+                vTaskDelay(pdMS_TO_TICKS(10));
+                port = peripheral_detect_query(isRight != NULL, PERIPHERAL_CMD_GET_PORT);
+                if (port == -1 || ((port & 0x20) != 0) != (detect != 0)) {port = -1; break;}
+            }
+            if (port != -1) {
+                if (detect && !isMounted) {
+                    vTaskDelay(pdMS_TO_TICKS(1000)); // wait for SD card to be fully inserted/debounce
+                    mountSuccess = drive_mount(isRight != NULL);
+                } else if (!detect && isMounted && mountSuccess) drive_unmount(isRight != NULL);
+                isMounted = detect;
+            }
         }
     }
     if (isMounted) drive_unmount(isRight != NULL);
