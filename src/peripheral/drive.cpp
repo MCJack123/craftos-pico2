@@ -173,7 +173,7 @@ static bool drive_mount(bool right) {
     mounts[right ? 1 : 0].impl = &fs_fat;
     mounts[right ? 1 : 0].fat.disk = pxDisk;
     FF_FS_Add(right ? "B:" : "A:", pxDisk);
-    craftos_machine_mount_real(machine, right ? "B:/" : "A:/", right ? "/disk2" : "/disk", peripheral_detect_query(right, PERIPHERAL_CMD_GET_PORT) & 0x10);
+    craftos_machine_mount_real(machine, right ? "B:" : "A:", right ? "/disk2" : "/disk", peripheral_detect_query(right, PERIPHERAL_CMD_GET_PORT) & 0x10);
     event_t event;
     event.type = EVENT_TYPE_DISK;
     event.peripheral.side = right ? "right" : "left";

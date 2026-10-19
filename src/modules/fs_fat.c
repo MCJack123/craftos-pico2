@@ -98,7 +98,7 @@ static int fs_fat_access(struct mount * mount, const char * path, int flags, cra
 }
 
 static int fs_fat_stat(struct mount * mount, const char * path, struct craftos_stat * st, craftos_machine_t machine) {
-    if (path[3] == '\0' || (path[3] == '/' && path[4] == '\0')) {
+    if (path[2] == '\0' || (path[2] == '/' && path[3] == '\0')) {
         st->st_dev = path[0] - 'A';
         st->st_ino = 0;
         st->st_mode = 0040777;
@@ -162,8 +162,11 @@ struct F_DIR {
 };
 
 static DIR_base * fs_fat_opendir(struct mount * mount, const char * path, craftos_machine_t machine) {
+    char _path[260];
     struct F_DIR * dir = (struct F_DIR*)malloc(sizeof(struct F_DIR));
-    int err = FF_FindFirst(mount->fat.disk->pxIOManager, &dir->dir, path + 2);
+    strcpy(_path, path + 2);
+    strcat(_path, "/");
+    int err = FF_FindFirst(mount->fat.disk->pxIOManager, &dir->dir, _path);
     if (err != 0) {
         free(dir);
         return NULL;
