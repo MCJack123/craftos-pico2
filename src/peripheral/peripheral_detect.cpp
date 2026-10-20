@@ -96,9 +96,6 @@ static void peripheral_detect_task(void* unused) {
 }
 
 void peripheral_detect_init() {
-    onewire_lock = xSemaphoreCreateMutex();
-    vQueueAddToRegistry(onewire_lock, "onewire_lock");
-    xTaskCreate(peripheral_detect_task, "peripheral_detect", 1536, NULL, 4, &detect_task);
     gpio_set_function(32, GPIO_FUNC_NULL);
     gpio_set_function(33, GPIO_FUNC_NULL);
     gpio_set_function(34, GPIO_FUNC_NULL);
@@ -107,4 +104,7 @@ void peripheral_detect_init() {
     gpio_set_function(9, GPIO_FUNC_NULL);
     gpio_set_function(10, GPIO_FUNC_NULL);
     gpio_set_function(11, GPIO_FUNC_NULL);
+    onewire_lock = xSemaphoreCreateMutex();
+    vQueueAddToRegistry(onewire_lock, "onewire_lock");
+    xTaskCreate(peripheral_detect_task, "peripheral_detect", 1536, NULL, 4, &detect_task);
 }

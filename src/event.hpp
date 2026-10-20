@@ -17,7 +17,16 @@ typedef enum {
     EVENT_TYPE_TERMINATE,
     EVENT_TYPE_PERIPHERAL,
     EVENT_TYPE_PERIPHERAL_DETACH,
+    EVENT_TYPE_WIFI_SCAN,
+    EVENT_TYPE_WIFI_CONNECT,
+    EVENT_TYPE_WIFI_DISCONNECT,
 } event_type_t;
+
+typedef struct {
+    char ssid[33];
+    uint8_t bars;
+    uint8_t security;
+} wifi_network_t;
 
 typedef union {
     uint32_t type;
@@ -38,6 +47,11 @@ typedef union {
         uint32_t type;
         const char * side;
     } peripheral;
+    struct {
+        uint32_t type;
+        uint16_t networkCount;
+        wifi_network_t* networks;
+    } wifi;
 } event_t;
 
 extern void event_push(const event_t* event);

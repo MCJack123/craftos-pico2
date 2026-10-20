@@ -35,7 +35,7 @@ struct flash_prog {
     lfs_size_t size;
 };
 
-static void _flash_prog(void* info) {
+static void __not_in_flash_func(_flash_prog)(void* info) {
     struct flash_prog* prog = info;
     if (psramActive) {
         // flush XIP cache to PSRAM
@@ -52,7 +52,7 @@ static int flash_prog(const struct lfs_config *c, lfs_block_t block,
     return flash_safe_execute(_flash_prog, &prog, 100);
 }
 
-static void _flash_erase(void* addr) {
+static void __not_in_flash_func(_flash_erase)(void* addr) {
     if (psramActive) {
         // flush XIP cache to PSRAM
         for (volatile uint8_t* cache = (volatile uint8_t*)0x18000001; cache < (volatile uint8_t*)(0x18000001 + 2048 * 8); cache += 8)
@@ -101,4 +101,6 @@ void fs_init(void) {
         lfs_mount(&mounts[2].lfs, &config);
     }
     sd_init_driver(); // init early so we don't interfere with the screen on right (spi0)
+    // then reset pin states
+    
 }

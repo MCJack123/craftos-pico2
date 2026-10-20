@@ -1,6 +1,7 @@
 #include <string.h>
 extern "C" {
 #include <sfe_psram.h>
+#include <lua.h>
 }
 #include <FreeRTOS.h>
 #include <task.h>
@@ -12,6 +13,7 @@ extern "C" {
 #include <pico/bootrom.h>
 #include <boot/picoboot_constants.h>
 #include <sfe_pico_alloc.h>
+#include <cyw43_ll.h>
 
 extern "C" {
     extern const unsigned char craftos2_rom[];
@@ -50,6 +52,25 @@ static void *l_alloc (void *ud, void *ptr, size_t osize, size_t nsize) {
     return sfe_mem_realloc(ptr, nsize);
 }
 
+static const char * wifi_security_names[] = {
+    "Open",
+    "WEP",
+    "WPA (Personal)",
+    "WPA (Personal)",
+    "WPA2 (Personal)",
+    "WPA2 (Personal)",
+    "WPA/WPA2 (Personal)",
+    "WPA/WPA2 (Personal)",
+    "WPA3 (Personal)",
+    "WPA3 (Personal)",
+    "Unsupported",
+    "Unsupported",
+    "WPA2/WPA3 (Personal)",
+    "WPA2/WPA3 (Personal)",
+    "Unsupported",
+    "Unsupported",
+};
+
 void machine_main(void*) {
     if (!sfe_pico_alloc_init()) forceLocalAlloc = true;
 
@@ -83,6 +104,33 @@ void machine_main(void*) {
                 case EVENT_TYPE_SPEAKER_AUDIO_EMPTY: craftos_machine_queue_event(machine, "speaker_audio_empty", "z", ev.peripheral.side); break;
                 case EVENT_TYPE_PERIPHERAL: craftos_machine_queue_event(machine, "peripheral", "z", ev.peripheral.side); break;
                 case EVENT_TYPE_PERIPHERAL_DETACH: craftos_machine_queue_event(machine, "peripheral_detach", "z", ev.peripheral.side); break;
+                case EVENT_TYPE_WIFI_CONNECT: craftos_machine_queue_event(machine, "wifi_connected", ""); break;
+                case EVENT_TYPE_WIFI_DISCONNECT: craftos_machine_queue_event(machine, "wifi_disconnected", ""); break;
+                case EVENT_TYPE_WIFI_SCAN: {
+                    lua_State *event = lua_newthread(machine->L);
+                    if (ev.wifi.networks == NULL) lua_pushnil(event);
+                    else {
+                        lua_createtable(event, 0, ev.wifi.networkCount);
+                        for (int i = 0; i < ev.wifi.networkCount; i++) {
+                            lua_getfield(event, -1, ev.wifi.networks[i].ssid);
+                            if (lua_isnil(event, -1)) {
+                                lua_pop(event, 1);
+                                lua_createtable(event, 0, 2);
+                                lua_pushstring(event, wifi_security_names[ev.wifi.networks[i].security]);
+                                lua_setfield(event, -2, "security");
+                                lua_pushinteger(event, ev.wifi.networks[i].bars);
+                                lua_setfield(event, -2, "bars");
+                                lua_setfield(event, -2, ev.wifi.networks[i].ssid);
+                            } else {
+                                // I believe it is sorted by strength already, so it should be fine?
+                                lua_pop(event, 1);
+                            }
+                        }
+                    }
+                    craftos_machine_queue_event(machine, "wifi_scan", "v", event);
+                    lua_pop(machine->L, 1);
+                    break;
+                }
             }
         } else if (status == CRAFTOS_MACHINE_STATUS_RESTART) {
             screen_deinit();
